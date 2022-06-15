@@ -74,7 +74,9 @@ contract RexSuperSwap {
         );
 
         // Step 3: Downgrade
-        _from.downgrade(amountIn);
+        if (_hasUnderlyingFrom) {
+            _from.downgrade(amountIn);
+        }
 
         // Step 4: Approve and Swap
 
