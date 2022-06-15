@@ -110,7 +110,9 @@ contract RexSuperSwap {
 
         // Step 5: Upgrade and send tokens back
         approve(address(toBase), address(_to));
-        _to.upgrade(toBaseAmount);
+        if hasUnderlyingTo {
+            _to.upgrade(toBaseAmount);
+        }
         approve(address(_to), msg.sender);
         TransferHelper.safeTransferFrom(
             address(_to),
