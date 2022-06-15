@@ -9,17 +9,22 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract RexSuperSwap {
     ISwapRouter02 public immutable swapRouter;
+    address public nativeToken;
+    IERC20 public nativeWrappedToken;
 
     event SuperSwapComplete(uint256 amountOut);
 
-    constructor(ISwapRouter02 _swapRouter) {
+    constructor(ISwapRouter02 _swapRouter, address _nativeToken, IERC20 _nativeWrappedToken) {
         swapRouter = _swapRouter;
+        nativeToken = _nativeToken;
+        nativeWrappedToken = _nativeWrappedToken;
     }
 
+    // Having unlimited approvals rather then dealing with decimal converisons.
+    // Not a problem as contract is not storing any tokens.
     function approve(address _token, address _spender) internal {
         IERC20 token = IERC20(_token);
         if (_token.allowance(_spender, msg.sender) == 0) {
-            // Unlimited approval, as contract is not storing any tokens
             TransferHelper.safeApprove(address(_token), address(_spender), (10 ** 56));
         }
     }
