@@ -6,6 +6,7 @@ import {ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/inte
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/swap-router-contracts/contracts/interfaces/ISwapRouter02.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./interface/IWMATIC.sol";
 
 contract RexSuperSwap {
     ISwapRouter02 public immutable swapRouter;
@@ -19,6 +20,8 @@ contract RexSuperSwap {
         nativeToken = _nativeToken;
         nativeWrappedToken = _nativeWrappedToken;
     }
+
+    receive() external payable {}
 
     // Having unlimited approvals rather then dealing with decimal converisons.
     // Not a problem as contract is not storing any tokens.
@@ -60,11 +63,21 @@ contract RexSuperSwap {
             fromBase = _from;
         }
 
+        if (fromBase == nativeToken) {
+            nativeWrappedToken.deposit(amountIn);
+            fromBase = address(nativeWrappedToken);
+        }
+
         address toBase;
         if (_hasUnderlyingTo) {
             toBase = _to.underlying();
         } else {
             toBase = _to;
+        }
+
+        if (toBase == nativeToken) {
+            nativeWrappedToken.deposit(amountIn);
+            fromBase = address(nativeWrappedToken);
         }
 
         require(path[0] == fromBase, "Invalid 'from' base token");
