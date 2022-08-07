@@ -25,10 +25,9 @@ contract RexSuperSwap {
 
     // Having unlimited approvals rather then dealing with decimal converisons.
     // Not a problem as contract is not storing any tokens.
-    function approve(address _token, address _spender) internal {
-        IERC20 token = IERC20(_token);
+    function approve(IERC20 _token, address _spender) internal {
         if (_token.allowance(_spender, msg.sender) == 0) {
-            TransferHelper.safeApprove(address(_token), address(_spender), (10 ** 56));
+            TransferHelper.safeApprove(address(_token), address(_spender), ((2 ** 256) - 1));
         }
     }
 
@@ -47,7 +46,7 @@ contract RexSuperSwap {
         uint24[] memory poolFees, // Example: 0.3% * 10000 = 3000
         bool _hasUnderlyingFrom,
         bool _hasUnderlyingTo
-    ) external returns (uint256 amountOut) {
+    ) external payable returns (uint256 amountOut) {
         require(amountIn > 0, "Amount cannot be 0");
         require(path.length > 1, "Incorrect path");
         require(
@@ -56,40 +55,36 @@ contract RexSuperSwap {
         );
 
         // Step 1: Get underlying tokens and verify path
-        address fromBase;
+        address fromBase = address(_from);
         if (_hasUnderlyingFrom) {
             fromBase = _from.underlying();
-        } else {
-            fromBase = _from;
         }
 
+        bool isSourceNative = false;
         if (fromBase == nativeToken) {
+            require(msg.value == amountIn, "Amount must match msg.value");
             nativeWrappedToken.deposit(amountIn);
             fromBase = address(nativeWrappedToken);
+            isSourceNative = true;
         }
 
-        address toBase;
+        address toBase = address(_to);
         if (_hasUnderlyingTo) {
             toBase = _to.underlying();
-        } else {
-            toBase = _to;
-        }
-
-        if (toBase == nativeToken) {
-            nativeWrappedToken.deposit(amountIn);
-            fromBase = address(nativeWrappedToken);
         }
 
         require(path[0] == fromBase, "Invalid 'from' base token");
         require(path[path.length - 1] == toBase, "Invalid 'to' base token");
 
         // Step 2: Transfer SuperTokens from sender
-        TransferHelper.safeTransferFrom(
-            address(_from),
-            msg.sender,
-            address(this),
-            amountIn
-        );
+        if (!isSourceNative) {
+            TransferHelper.safeTransferFrom(
+                address(_from),
+                msg.sender,
+                address(this),
+                amountIn
+            );
+        }
 
         // Step 3: Downgrade
         if (_hasUnderlyingFrom) {
@@ -126,19 +121,22 @@ contract RexSuperSwap {
         // Execute the swap
         amountOut = swapRouter.exactInput(params);
 
-        uint256 toBaseAmount = toBase.balanceOf(address(this));
+        // use this if didnt work
+        // uint256 toBaseAmount = amountOut // toBase.balanceOf(address(this));
 
         // Step 5: Upgrade and send tokens back
-        approve(address(toBase), address(_to));
-        if hasUnderlyingTo {
-            _to.upgrade(toBaseAmount);
+        approve(toBase, address(_to));
+        uint toBaseAmount = amountOut;
+        if (hasUnderlyingTo) {
+            _to.upgrade(amountOut);
+            toBaseAmount = (amountOut * _to.decimals()) / (10 ** IERC20(toBase).decimals());
         }
+
         approve(address(_to), msg.sender);
-        TransferHelper.safeTransferFrom(
+        TransferHelper.safeTransfer(
             address(_to),
-            address(this),
             msg.sender,
-            _to.balanceOf(address(this));
+            toBaseAmount
         );
 
         emit SuperSwapComplete(amountOut);
