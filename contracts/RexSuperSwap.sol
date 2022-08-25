@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.7.6;
+pragma solidity ^0.8.0;
 pragma abicoder v2;
 
 import {ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
@@ -11,11 +11,11 @@ import "./interface/IWMATIC.sol";
 contract RexSuperSwap {
     ISwapRouter02 public immutable swapRouter;
     address public nativeToken;
-    IERC20 public nativeWrappedToken;
+    IWMATIC public nativeWrappedToken;
 
     event SuperSwapComplete(uint256 amountOut);
 
-    constructor(ISwapRouter02 _swapRouter, address _nativeToken, IERC20 _nativeWrappedToken) {
+    constructor(ISwapRouter02 _swapRouter, address _nativeToken, IWMATIC _nativeWrappedToken) {
         swapRouter = _swapRouter;
         nativeToken = _nativeToken;
         nativeWrappedToken = _nativeWrappedToken;
@@ -57,20 +57,20 @@ contract RexSuperSwap {
         // Step 1: Get underlying tokens and verify path
         address fromBase = address(_from);
         if (_hasUnderlyingFrom) {
-            fromBase = _from.underlying();
+            fromBase = _from.getUnderlyingToken();
         }
 
         bool isSourceNative = false;
         if (fromBase == nativeToken) {
             require(msg.value == amountIn, "Amount must match msg.value");
-            nativeWrappedToken.deposit(amountIn);
+            nativeWrappedToken.deposit{ value: amountIn };
             fromBase = address(nativeWrappedToken);
             isSourceNative = true;
         }
 
         address toBase = address(_to);
         if (_hasUnderlyingTo) {
-            toBase = _to.underlying();
+            toBase = _to.getUnderlyingToken();
         }
 
         require(path[0] == fromBase, "Invalid 'from' base token");
@@ -108,13 +108,13 @@ contract RexSuperSwap {
         }
 
         // Approve the router to spend token supplied (fromBase).
-        approve(fromBase, address(swapRouter));
+        approve(IERC20(fromBase), address(swapRouter));
 
         IV3SwapRouter.ExactInputParams memory params = IV3SwapRouter
             .ExactInputParams({
                 path: encodedPath,
                 recipient: address(this),
-                amountIn: fromBase.balanceOf(address(this)),
+                amountIn: IERC20(fromBase).balanceOf(address(this)),
                 amountOutMinimum: amountOutMin
             });
 
@@ -125,14 +125,14 @@ contract RexSuperSwap {
         // uint256 toBaseAmount = amountOut // toBase.balanceOf(address(this));
 
         // Step 5: Upgrade and send tokens back
-        approve(toBase, address(_to));
+        approve(IERC20(toBase), address(_to));
         uint toBaseAmount = amountOut;
-        if (hasUnderlyingTo) {
+        if (_hasUnderlyingTo) {
             _to.upgrade(amountOut);
-            toBaseAmount = (amountOut * _to.decimals()) / (10 ** IERC20(toBase).decimals());
+            toBaseAmount = (amountOut * _to.decimals()) / (10 ** ISuperToken(toBase).decimals());
         }
 
-        approve(address(_to), msg.sender);
+        approve(IERC20(_to), msg.sender);
         TransferHelper.safeTransfer(
             address(_to),
             msg.sender,

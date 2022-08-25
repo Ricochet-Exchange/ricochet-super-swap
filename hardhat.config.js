@@ -22,7 +22,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  solidity: "0.7.6",
+  solidity: "0.8.0",
   networks: {
     ropsten: {
       url: process.env.ROPSTEN_URL || "",
@@ -34,8 +34,13 @@ module.exports = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    goerli: {
+      url: process.env.GOERLI_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     polygon: {
-      url: process.env.POLYGON_NODE_URL,
+      url: process.env.POLYGON_URL,
       accounts: [process.env.PRIVATE_KEY],
       blockGasLimit: 20000000,
       gasPrice: 35000000000 // 35 Gwei
