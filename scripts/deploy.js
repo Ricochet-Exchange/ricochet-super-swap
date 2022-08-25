@@ -15,7 +15,7 @@ async function main() {
 
   // We get the contract to deploy
   const RexSuperSwap = await hre.ethers.getContractFactory("RexSuperSwap");
-  const superSwap = await RexSuperSwap.deploy("0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45");
+  const superSwap = await RexSuperSwap.deploy("0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45", "0x0000000000000000000000000000000000000000", "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270");
 
   await superSwap.deployed();
 
